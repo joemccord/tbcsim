@@ -1,7 +1,7 @@
 package data.abilities.raid
 
 import character.*
-import sim.SimIteration
+import sim.SimParticipant
 
 // Since this is a deep Balance talent, it's not quite reasonable to assume 3/3 Improved
 class FaerieFire : Ability() {
@@ -11,22 +11,22 @@ class FaerieFire : Ability() {
 
     override val id: Int = 26993
     override val name: String = Companion.name
-    override fun gcdMs(sim: SimIteration): Int = 0
+    override fun gcdMs(sp: SimParticipant): Int = 0
 
-    val debuff = object : Debuff() {
+    fun debuff(owner: SimParticipant) = object : Debuff(owner) {
         override val name: String = "Faerie Fire"
         // Assume the caster is always maintaining this
         override val durationMs: Int = -1
         override val hidden: Boolean = true
 
-        override fun modifyStats(sim: SimIteration): Stats {
+        override fun modifyStats(sp: SimParticipant): Stats {
             return Stats(
                 armor = -610
             )
         }
     }
 
-    override fun cast(sim: SimIteration) {
-        sim.addDebuff(debuff)
+    override fun cast(sp: SimParticipant) {
+        sp.sim.target.addDebuff(debuff(sp))
     }
 }

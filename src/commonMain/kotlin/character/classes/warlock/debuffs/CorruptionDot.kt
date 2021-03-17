@@ -11,9 +11,9 @@ import data.Constants
 import data.model.Item
 import mechanics.Spell
 import sim.Event
-import sim.SimIteration
+import sim.SimParticipant
 
-class CorruptionDot : Debuff() {
+class CorruptionDot(owner: SimParticipant) : Debuff(owner) {
     companion object {
         const val name = "Corruption (DoT)"
     }
@@ -27,18 +27,18 @@ class CorruptionDot : Debuff() {
             Trigger.WARLOCK_TICK_CORRUPTION
         )
         override val type: Type = Type.PERCENT
-        override fun percentChance(sim: SimIteration): Double {
-            val nightfallRanks = sim.subject.klass.talents[Nightfall.name]?.currentRank ?: 0
-            return 0.02 * nightfallRanks
+        override fun percentChance(sp: SimParticipant): Double {
+            val nightfallRanks = sp.character.klass.talents[Nightfall.name]?.currentRank ?: 0
+            return 2.0 * nightfallRanks
         }
 
-        override fun proc(sim: SimIteration, items: List<Item>?, ability: Ability?, event: Event?) {
-            sim.logEvent(Event(
+        override fun proc(sp: SimParticipant, items: List<Item>?, ability: Ability?, event: Event?) {
+            sp.logEvent(Event(
                 eventType = Event.Type.PROC,
                 abilityName = Nightfall.name
             ))
 
-            sim.addBuff(object: Buff() {
+            sp.addBuff(object: Buff() {
                 override val name: String = Nightfall.name
                 override val durationMs: Int = 10000
             })
@@ -48,31 +48,31 @@ class CorruptionDot : Debuff() {
     val dot = object : Ability() {
         override val id: Int = 27216
         override val name: String = Companion.name
-        override fun gcdMs(sim: SimIteration): Int = 0
+        override fun gcdMs(sp: SimParticipant): Int = 0
 
         val dmgPerTick = 50.0
         val numTicks = 6.0
         val school = Constants.DamageType.SHADOW
-        override fun cast(sim: SimIteration) {
-            val impCorruption = sim.subject.klass.talents[EmpoweredCorruption.name] as EmpoweredCorruption?
+        override fun cast(sp: SimParticipant) {
+            val impCorruption = owner.character.klass.talents[EmpoweredCorruption.name] as EmpoweredCorruption?
             val bonusSpellPowerMultiplier = impCorruption?.corruptionSpellDamageMultiplier() ?: 1.0
 
-            val contagion = sim.subject.klass.talents[Contagion.name] as Contagion?
+            val contagion = owner.character.klass.talents[Contagion.name] as Contagion?
             val contagionMultiplier = contagion?.additionalDamageMultiplier() ?: 1.0
 
             val spellPowerCoeff = Spell.spellPowerCoeff(0, durationMs) / numTicks
-            val damageRoll = Spell.baseDamageRoll(sim, dmgPerTick, spellPowerCoeff, school, bonusSpellDamageMultiplier = bonusSpellPowerMultiplier) * contagionMultiplier
+            val damageRoll = Spell.baseDamageRoll(owner, dmgPerTick, spellPowerCoeff, school, bonusSpellDamageMultiplier = bonusSpellPowerMultiplier) * contagionMultiplier
 
             val event = Event(
                 eventType = Event.Type.DAMAGE,
                 damageType = school,
                 abilityName = name,
                 amount = damageRoll,
-                result = Event.Result.HIT,
+                result = Event.Result.HIT
             )
-            sim.logEvent(event)
+            owner.logEvent(event)
 
-            sim.fireProc(
+            owner.fireProc(
                 listOf(Proc.Trigger.WARLOCK_TICK_CORRUPTION, Proc.Trigger.SHADOW_DAMAGE_PERIODIC),
                 listOf(),
                 this,
@@ -81,9 +81,9 @@ class CorruptionDot : Debuff() {
         }
     }
 
-    override fun tick(sim: SimIteration) {
-        dot.cast(sim)
+    override fun tick(sp: SimParticipant) {
+        dot.cast(sp)
     }
 
-    override fun procs(sim: SimIteration): List<Proc> = listOf(nightfallProc)
+    override fun procs(sp: SimParticipant): List<Proc> = listOf(nightfallProc)
 }
